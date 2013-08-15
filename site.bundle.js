@@ -6,7 +6,9 @@ var canvas = document.body.appendChild(document.createElement('canvas'));
 canvas.width = 425;
 canvas.height = 200;
 
+document.body.appendChild(document.createElement('h3')).innerHTML = 'image-mux';
 demux('foo3.png', canvas, 10);
+document.body.appendChild(document.createElement('img')).src = 'foo3.png';
 
 },{"./demux":2}],2:[function(require,module,exports){
 var getPixels = require('get-pixels'),
@@ -102,7 +104,7 @@ module.exports = function(image, canvas, fps) {
     });
 };
 
-},{"ndarray":3,"get-pixels":4,"save-pixels":5,"cwise":6,"raf-component":7}],7:[function(require,module,exports){
+},{"get-pixels":3,"ndarray":4,"save-pixels":5,"cwise":6,"raf-component":7}],7:[function(require,module,exports){
 
 /**
  * Expose `requestAnimationFrame()`.
@@ -142,6 +144,28 @@ exports.cancel = function(id){
 };
 
 },{}],3:[function(require,module,exports){
+"use strict"
+
+var ndarray = require("ndarray")
+
+module.exports = function getPixels(url, cb) {
+  var img = new Image()
+  img.onload = function() {
+    var canvas = document.createElement("canvas")
+    canvas.width = img.width
+    canvas.height = img.height
+    var context = canvas.getContext("2d")
+    context.drawImage(img, 0, 0)
+    var pixels = context.getImageData(0, 0, img.width, img.height)
+    cb(null, ndarray(new Uint8Array(pixels.data), [img.height, img.width, 4], [4*img.width, 4, 1], 0))
+  }
+  img.onerror = function(err) {
+    cb(err)
+  }
+  img.src = url
+}
+
+},{"ndarray":8}],4:[function(require,module,exports){
 "use strict"
 
 var iota = require("iota-array")
@@ -481,29 +505,7 @@ function wrappedNDArrayCtor(data, shape, stride, offset) {
 }
 
 module.exports = wrappedNDArrayCtor
-},{"iota-array":8}],4:[function(require,module,exports){
-"use strict"
-
-var ndarray = require("ndarray")
-
-module.exports = function getPixels(url, cb) {
-  var img = new Image()
-  img.onload = function() {
-    var canvas = document.createElement("canvas")
-    canvas.width = img.width
-    canvas.height = img.height
-    var context = canvas.getContext("2d")
-    context.drawImage(img, 0, 0)
-    var pixels = context.getImageData(0, 0, img.width, img.height)
-    cb(null, ndarray(new Uint8Array(pixels.data), [img.height, img.width, 4], [4*img.width, 4, 1], 0))
-  }
-  img.onerror = function(err) {
-    cb(err)
-  }
-  img.src = url
-}
-
-},{"ndarray":9}],5:[function(require,module,exports){
+},{"iota-array":9}],5:[function(require,module,exports){
 "use strict"
 
 var PNG = require("pngjs").PNG
@@ -595,7 +597,7 @@ module.exports = function savePixels(array, type) {
   }
 }
 
-},{"through":10,"pngjs":11}],6:[function(require,module,exports){
+},{"pngjs":10,"through":11}],6:[function(require,module,exports){
 "use strict"
 
 var parse   = require("cwise-parser")
@@ -632,7 +634,7 @@ function createCWise(user_args) {
 
 module.exports = createCWise
 
-},{"cwise-compiler":12,"cwise-parser":13}],8:[function(require,module,exports){
+},{"cwise-parser":12,"cwise-compiler":13}],9:[function(require,module,exports){
 "use strict"
 
 function iota(n) {
@@ -698,7 +700,7 @@ process.chdir = function (dir) {
     throw new Error('process.chdir is not supported');
 };
 
-},{}],10:[function(require,module,exports){
+},{}],11:[function(require,module,exports){
 (function(process){var Stream = require('stream')
 
 // through
@@ -809,128 +811,7 @@ function through (write, end, opts) {
 
 
 })(require("__browserify_process"))
-},{"stream":15,"__browserify_process":14}],15:[function(require,module,exports){
-var events = require('events');
-var util = require('util');
-
-function Stream() {
-  events.EventEmitter.call(this);
-}
-util.inherits(Stream, events.EventEmitter);
-module.exports = Stream;
-// Backwards-compat with node 0.4.x
-Stream.Stream = Stream;
-
-Stream.prototype.pipe = function(dest, options) {
-  var source = this;
-
-  function ondata(chunk) {
-    if (dest.writable) {
-      if (false === dest.write(chunk) && source.pause) {
-        source.pause();
-      }
-    }
-  }
-
-  source.on('data', ondata);
-
-  function ondrain() {
-    if (source.readable && source.resume) {
-      source.resume();
-    }
-  }
-
-  dest.on('drain', ondrain);
-
-  // If the 'end' option is not supplied, dest.end() will be called when
-  // source gets the 'end' or 'close' events.  Only dest.end() once, and
-  // only when all sources have ended.
-  if (!dest._isStdio && (!options || options.end !== false)) {
-    dest._pipeCount = dest._pipeCount || 0;
-    dest._pipeCount++;
-
-    source.on('end', onend);
-    source.on('close', onclose);
-  }
-
-  var didOnEnd = false;
-  function onend() {
-    if (didOnEnd) return;
-    didOnEnd = true;
-
-    dest._pipeCount--;
-
-    // remove the listeners
-    cleanup();
-
-    if (dest._pipeCount > 0) {
-      // waiting for other incoming streams to end.
-      return;
-    }
-
-    dest.end();
-  }
-
-
-  function onclose() {
-    if (didOnEnd) return;
-    didOnEnd = true;
-
-    dest._pipeCount--;
-
-    // remove the listeners
-    cleanup();
-
-    if (dest._pipeCount > 0) {
-      // waiting for other incoming streams to end.
-      return;
-    }
-
-    dest.destroy();
-  }
-
-  // don't leave dangling pipes when there are errors.
-  function onerror(er) {
-    cleanup();
-    if (this.listeners('error').length === 0) {
-      throw er; // Unhandled stream error in pipe.
-    }
-  }
-
-  source.on('error', onerror);
-  dest.on('error', onerror);
-
-  // remove all the event listeners that were added.
-  function cleanup() {
-    source.removeListener('data', ondata);
-    dest.removeListener('drain', ondrain);
-
-    source.removeListener('end', onend);
-    source.removeListener('close', onclose);
-
-    source.removeListener('error', onerror);
-    dest.removeListener('error', onerror);
-
-    source.removeListener('end', cleanup);
-    source.removeListener('close', cleanup);
-
-    dest.removeListener('end', cleanup);
-    dest.removeListener('close', cleanup);
-  }
-
-  source.on('end', cleanup);
-  source.on('close', cleanup);
-
-  dest.on('end', cleanup);
-  dest.on('close', cleanup);
-
-  dest.emit('pipe', source);
-
-  // Allow for unix-like usage: A.pipe(B).pipe(C)
-  return dest;
-};
-
-},{"events":16,"util":17}],17:[function(require,module,exports){
+},{"stream":15,"__browserify_process":14}],16:[function(require,module,exports){
 var events = require('events');
 
 exports.isArray = isArray;
@@ -1283,7 +1164,128 @@ exports.format = function(f) {
   return str;
 };
 
-},{"events":16}],12:[function(require,module,exports){
+},{"events":17}],15:[function(require,module,exports){
+var events = require('events');
+var util = require('util');
+
+function Stream() {
+  events.EventEmitter.call(this);
+}
+util.inherits(Stream, events.EventEmitter);
+module.exports = Stream;
+// Backwards-compat with node 0.4.x
+Stream.Stream = Stream;
+
+Stream.prototype.pipe = function(dest, options) {
+  var source = this;
+
+  function ondata(chunk) {
+    if (dest.writable) {
+      if (false === dest.write(chunk) && source.pause) {
+        source.pause();
+      }
+    }
+  }
+
+  source.on('data', ondata);
+
+  function ondrain() {
+    if (source.readable && source.resume) {
+      source.resume();
+    }
+  }
+
+  dest.on('drain', ondrain);
+
+  // If the 'end' option is not supplied, dest.end() will be called when
+  // source gets the 'end' or 'close' events.  Only dest.end() once, and
+  // only when all sources have ended.
+  if (!dest._isStdio && (!options || options.end !== false)) {
+    dest._pipeCount = dest._pipeCount || 0;
+    dest._pipeCount++;
+
+    source.on('end', onend);
+    source.on('close', onclose);
+  }
+
+  var didOnEnd = false;
+  function onend() {
+    if (didOnEnd) return;
+    didOnEnd = true;
+
+    dest._pipeCount--;
+
+    // remove the listeners
+    cleanup();
+
+    if (dest._pipeCount > 0) {
+      // waiting for other incoming streams to end.
+      return;
+    }
+
+    dest.end();
+  }
+
+
+  function onclose() {
+    if (didOnEnd) return;
+    didOnEnd = true;
+
+    dest._pipeCount--;
+
+    // remove the listeners
+    cleanup();
+
+    if (dest._pipeCount > 0) {
+      // waiting for other incoming streams to end.
+      return;
+    }
+
+    dest.destroy();
+  }
+
+  // don't leave dangling pipes when there are errors.
+  function onerror(er) {
+    cleanup();
+    if (this.listeners('error').length === 0) {
+      throw er; // Unhandled stream error in pipe.
+    }
+  }
+
+  source.on('error', onerror);
+  dest.on('error', onerror);
+
+  // remove all the event listeners that were added.
+  function cleanup() {
+    source.removeListener('data', ondata);
+    dest.removeListener('drain', ondrain);
+
+    source.removeListener('end', onend);
+    source.removeListener('close', onclose);
+
+    source.removeListener('error', onerror);
+    dest.removeListener('error', onerror);
+
+    source.removeListener('end', cleanup);
+    source.removeListener('close', cleanup);
+
+    dest.removeListener('end', cleanup);
+    dest.removeListener('close', cleanup);
+  }
+
+  source.on('end', cleanup);
+  source.on('close', cleanup);
+
+  dest.on('end', cleanup);
+  dest.on('close', cleanup);
+
+  dest.emit('pipe', source);
+
+  // Allow for unix-like usage: A.pipe(B).pipe(C)
+  return dest;
+};
+
+},{"events":17,"util":16}],13:[function(require,module,exports){
 "use strict"
 
 var createThunk = require("./lib/thunk.js")
@@ -5256,7 +5258,7 @@ SlowBuffer.prototype.writeDoubleBE = Buffer.prototype.writeDoubleBE;
 },{}]},{},[])
 ;;module.exports=require("buffer-browserify")
 
-},{}],11:[function(require,module,exports){
+},{}],10:[function(require,module,exports){
 (function(process,Buffer){// Copyright (c) 2012 Kuba Niegowski
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -5406,7 +5408,7 @@ PNG.prototype.bitblt = function(dst, sx, sy, w, h, dx, dy) {
 };
 
 })(require("__browserify_process"),require("__browserify_buffer").Buffer)
-},{"util":17,"stream":15,"./parser":20,"./packer":21,"__browserify_process":14,"__browserify_buffer":19}],16:[function(require,module,exports){
+},{"util":16,"stream":15,"./packer":20,"./parser":21,"__browserify_process":14,"__browserify_buffer":19}],17:[function(require,module,exports){
 (function(process){if (!process.EventEmitter) process.EventEmitter = function () {};
 
 var EventEmitter = exports.EventEmitter = process.EventEmitter;
@@ -5592,7 +5594,7 @@ EventEmitter.prototype.listeners = function(type) {
 };
 
 })(require("__browserify_process"))
-},{"__browserify_process":14}],9:[function(require,module,exports){
+},{"__browserify_process":14}],8:[function(require,module,exports){
 "use strict"
 
 var iota = require("iota-array")
@@ -5932,7 +5934,7 @@ function wrappedNDArrayCtor(data, shape, stride, offset) {
 }
 
 module.exports = wrappedNDArrayCtor
-},{"iota-array":22}],13:[function(require,module,exports){
+},{"iota-array":22}],12:[function(require,module,exports){
 "use strict"
 
 var esprima = require("esprima")
@@ -10183,6 +10185,119 @@ parseStatement: true, parseSourceElement: true */
 
 
 var util = require('util'),
+    Stream = require('stream'),
+    zlib = require('zlib'),
+    Filter = require('./filter'),
+    CrcStream = require('./crc'),
+    constants = require('./constants');
+
+
+var Packer = module.exports = function(options) {
+    Stream.call(this);
+
+    this._options = options;
+
+    options.deflateChunkSize = options.deflateChunkSize || 32 * 1024;
+    options.deflateLevel = options.deflateLevel || 9;
+    options.deflateStrategy = options.deflateStrategy || 3;
+
+    this.readable = true;
+};
+util.inherits(Packer, Stream);
+
+
+Packer.prototype.pack = function(data, width, height) {
+
+    // Signature
+    this.emit('data', new Buffer(constants.PNG_SIGNATURE));
+    this.emit('data', this._packIHDR(width, height));
+
+    // filter pixel data
+    var filter = new Filter(width, height, 4, data, this._options);
+    var data = filter.filter();
+
+    // compress it
+    var deflate = zlib.createDeflate({
+            chunkSize: this._options.deflateChunkSize,
+            level: this._options.deflateLevel,
+            strategy: this._options.deflateStrategy
+        });
+    deflate.on('error', this.emit.bind(this, 'error'));
+
+    deflate.on('data', function(data) {
+        this.emit('data', this._packIDAT(data));
+    }.bind(this));
+
+    deflate.on('end', function() {
+        this.emit('data', this._packIEND());
+        this.emit('end');
+    }.bind(this));
+
+    deflate.end(data);
+};
+
+Packer.prototype._packChunk = function(type, data) {
+
+    var len = (data ? data.length : 0),
+        buf = new Buffer(len + 12);
+
+    buf.writeUInt32BE(len, 0);
+    buf.writeUInt32BE(type, 4);
+
+    if (data) data.copy(buf, 8);
+
+    buf.writeInt32BE(CrcStream.crc32(buf.slice(4, buf.length - 4)), buf.length - 4);
+    return buf;
+};
+
+Packer.prototype._packIHDR = function(width, height) {
+
+    var buf = new Buffer(13);
+    buf.writeUInt32BE(width, 0);
+    buf.writeUInt32BE(height, 4);
+    buf[8] = 8;
+    buf[9] = 6; // colorType
+    buf[10] = 0; // compression
+    buf[11] = 0; // filter
+    buf[12] = 0; // interlace
+
+    return this._packChunk(constants.TYPE_IHDR, buf);
+};
+
+Packer.prototype._packIDAT = function(data) {
+    return this._packChunk(constants.TYPE_IDAT, data);
+};
+
+Packer.prototype._packIEND = function() {
+    return this._packChunk(constants.TYPE_IEND, null);
+};
+
+})(require("__browserify_buffer").Buffer)
+},{"util":16,"stream":15,"zlib":26,"./filter":27,"./crc":28,"./constants":29,"__browserify_buffer":19}],21:[function(require,module,exports){
+(function(Buffer){// Copyright (c) 2012 Kuba Niegowski
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+
+'use strict';
+
+
+var util = require('util'),
     zlib = require('zlib'),
     CrcStream = require('./crc'),
     ChunkStream = require('./chunkstream'),
@@ -10520,120 +10635,7 @@ Parser.prototype._reverseFiltered = function(data, width, height) {
 };
 
 })(require("__browserify_buffer").Buffer)
-},{"util":17,"zlib":26,"./chunkstream":27,"./crc":28,"./constants":29,"./filter":30,"__browserify_buffer":19}],21:[function(require,module,exports){
-(function(Buffer){// Copyright (c) 2012 Kuba Niegowski
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-
-'use strict';
-
-
-var util = require('util'),
-    Stream = require('stream'),
-    zlib = require('zlib'),
-    Filter = require('./filter'),
-    CrcStream = require('./crc'),
-    constants = require('./constants');
-
-
-var Packer = module.exports = function(options) {
-    Stream.call(this);
-
-    this._options = options;
-
-    options.deflateChunkSize = options.deflateChunkSize || 32 * 1024;
-    options.deflateLevel = options.deflateLevel || 9;
-    options.deflateStrategy = options.deflateStrategy || 3;
-
-    this.readable = true;
-};
-util.inherits(Packer, Stream);
-
-
-Packer.prototype.pack = function(data, width, height) {
-
-    // Signature
-    this.emit('data', new Buffer(constants.PNG_SIGNATURE));
-    this.emit('data', this._packIHDR(width, height));
-
-    // filter pixel data
-    var filter = new Filter(width, height, 4, data, this._options);
-    var data = filter.filter();
-
-    // compress it
-    var deflate = zlib.createDeflate({
-            chunkSize: this._options.deflateChunkSize,
-            level: this._options.deflateLevel,
-            strategy: this._options.deflateStrategy
-        });
-    deflate.on('error', this.emit.bind(this, 'error'));
-
-    deflate.on('data', function(data) {
-        this.emit('data', this._packIDAT(data));
-    }.bind(this));
-
-    deflate.on('end', function() {
-        this.emit('data', this._packIEND());
-        this.emit('end');
-    }.bind(this));
-
-    deflate.end(data);
-};
-
-Packer.prototype._packChunk = function(type, data) {
-
-    var len = (data ? data.length : 0),
-        buf = new Buffer(len + 12);
-
-    buf.writeUInt32BE(len, 0);
-    buf.writeUInt32BE(type, 4);
-
-    if (data) data.copy(buf, 8);
-
-    buf.writeInt32BE(CrcStream.crc32(buf.slice(4, buf.length - 4)), buf.length - 4);
-    return buf;
-};
-
-Packer.prototype._packIHDR = function(width, height) {
-
-    var buf = new Buffer(13);
-    buf.writeUInt32BE(width, 0);
-    buf.writeUInt32BE(height, 4);
-    buf[8] = 8;
-    buf[9] = 6; // colorType
-    buf[10] = 0; // compression
-    buf[11] = 0; // filter
-    buf[12] = 0; // interlace
-
-    return this._packChunk(constants.TYPE_IHDR, buf);
-};
-
-Packer.prototype._packIDAT = function(data) {
-    return this._packChunk(constants.TYPE_IDAT, data);
-};
-
-Packer.prototype._packIEND = function() {
-    return this._packChunk(constants.TYPE_IEND, null);
-};
-
-})(require("__browserify_buffer").Buffer)
-},{"util":17,"stream":15,"zlib":26,"./filter":30,"./crc":28,"./constants":29,"__browserify_buffer":19}],26:[function(require,module,exports){
+},{"util":16,"zlib":26,"./crc":28,"./chunkstream":30,"./constants":29,"./filter":27,"__browserify_buffer":19}],26:[function(require,module,exports){
 (function(Buffer){const Zlib = module.exports = require('./zlib');
 
 // the least I can do is make error messages for the rest of the node.js/zlib api.
@@ -10678,7 +10680,128 @@ Zlib.gzip = function gzip(stringOrBuffer, callback) {
   return _gzip(Buffer(stringOrBuffer), callback);
 };
 })(require("__browserify_buffer").Buffer)
-},{"./zlib":31,"__browserify_buffer":19}],27:[function(require,module,exports){
+},{"./zlib":31,"__browserify_buffer":19}],28:[function(require,module,exports){
+// Copyright (c) 2012 Kuba Niegowski
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+
+'use strict';
+
+var util = require('util'),
+    Stream = require('stream');
+
+
+var CrcStream = module.exports = function() {
+    Stream.call(this);
+
+    this._crc = -1;
+
+    this.writable = true;
+};
+util.inherits(CrcStream, Stream);
+
+
+CrcStream.prototype.write = function(data) {
+
+    for (var i = 0; i < data.length; i++) {
+        this._crc = crcTable[(this._crc ^ data[i]) & 0xff] ^ (this._crc >>> 8);
+    }
+    return true;
+};
+
+CrcStream.prototype.end = function(data) {
+    if (data) this.write(data);
+
+    this.emit('crc', this.crc32());
+};
+
+CrcStream.prototype.crc32 = function() {
+    return this._crc ^ -1;
+};
+
+
+CrcStream.crc32 = function(buf) {
+
+    var crc = -1;
+    for (var i = 0; i < buf.length; i++) {
+        crc = crcTable[(crc ^ buf[i]) & 0xff] ^ (crc >>> 8);
+    }
+    return crc ^ -1;
+};
+
+
+
+var crcTable = [];
+
+for (var i = 0; i < 256; i++) {
+    var c = i;
+    for (var j = 0; j < 8; j++) {
+        if (c & 1) {
+            c = 0xedb88320 ^ (c >>> 1);
+        } else {
+            c = c >>> 1;
+        }
+    }
+    crcTable[i] = c;
+}
+
+},{"util":16,"stream":15}],29:[function(require,module,exports){
+// Copyright (c) 2012 Kuba Niegowski
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+
+'use strict';
+
+
+module.exports = {
+
+    PNG_SIGNATURE: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a],
+
+    TYPE_IHDR: 0x49484452,
+    TYPE_IEND: 0x49454e44,
+    TYPE_IDAT: 0x49444154,
+    TYPE_PLTE: 0x504c5445,
+    TYPE_tRNS: 0x74524e53,
+    TYPE_gAMA: 0x67414d41,
+
+    COLOR_PALETTE: 1,
+    COLOR_COLOR: 2,
+    COLOR_ALPHA: 4
+};
+
+},{}],30:[function(require,module,exports){
 (function(Buffer){// Copyright (c) 2012 Kuba Niegowski
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -10879,128 +11002,7 @@ ChunkStream.prototype._process = function() {
 };
 
 })(require("__browserify_buffer").Buffer)
-},{"util":17,"stream":15,"__browserify_buffer":19}],28:[function(require,module,exports){
-// Copyright (c) 2012 Kuba Niegowski
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-
-'use strict';
-
-var util = require('util'),
-    Stream = require('stream');
-
-
-var CrcStream = module.exports = function() {
-    Stream.call(this);
-
-    this._crc = -1;
-
-    this.writable = true;
-};
-util.inherits(CrcStream, Stream);
-
-
-CrcStream.prototype.write = function(data) {
-
-    for (var i = 0; i < data.length; i++) {
-        this._crc = crcTable[(this._crc ^ data[i]) & 0xff] ^ (this._crc >>> 8);
-    }
-    return true;
-};
-
-CrcStream.prototype.end = function(data) {
-    if (data) this.write(data);
-
-    this.emit('crc', this.crc32());
-};
-
-CrcStream.prototype.crc32 = function() {
-    return this._crc ^ -1;
-};
-
-
-CrcStream.crc32 = function(buf) {
-
-    var crc = -1;
-    for (var i = 0; i < buf.length; i++) {
-        crc = crcTable[(crc ^ buf[i]) & 0xff] ^ (crc >>> 8);
-    }
-    return crc ^ -1;
-};
-
-
-
-var crcTable = [];
-
-for (var i = 0; i < 256; i++) {
-    var c = i;
-    for (var j = 0; j < 8; j++) {
-        if (c & 1) {
-            c = 0xedb88320 ^ (c >>> 1);
-        } else {
-            c = c >>> 1;
-        }
-    }
-    crcTable[i] = c;
-}
-
-},{"util":17,"stream":15}],29:[function(require,module,exports){
-// Copyright (c) 2012 Kuba Niegowski
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-
-'use strict';
-
-
-module.exports = {
-
-    PNG_SIGNATURE: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a],
-
-    TYPE_IHDR: 0x49484452,
-    TYPE_IEND: 0x49454e44,
-    TYPE_IDAT: 0x49444154,
-    TYPE_PLTE: 0x504c5445,
-    TYPE_tRNS: 0x74524e53,
-    TYPE_gAMA: 0x67414d41,
-
-    COLOR_PALETTE: 1,
-    COLOR_COLOR: 2,
-    COLOR_ALPHA: 4
-};
-
-},{}],31:[function(require,module,exports){
+},{"util":16,"stream":15,"__browserify_buffer":19}],31:[function(require,module,exports){
 (function(process,Buffer){/** @license zlib.js 2012 - imaya [ https://github.com/imaya/zlib.js ] The MIT License */
 (function() {'use strict';function m(c){throw c;}var r=void 0,u=!0;var B="undefined"!==typeof Uint8Array&&"undefined"!==typeof Uint16Array&&"undefined"!==typeof Uint32Array;function aa(c){if("string"===typeof c){var a=c.split(""),b,e;b=0;for(e=a.length;b<e;b++)a[b]=(a[b].charCodeAt(0)&255)>>>0;c=a}for(var f=1,d=0,g=c.length,h,j=0;0<g;){h=1024<g?1024:g;g-=h;do f+=c[j++],d+=f;while(--h);f%=65521;d%=65521}return(d<<16|f)>>>0};function I(c,a){this.index="number"===typeof a?a:0;this.n=0;this.buffer=c instanceof(B?Uint8Array:Array)?c:new (B?Uint8Array:Array)(32768);2*this.buffer.length<=this.index&&m(Error("invalid index"));this.buffer.length<=this.index&&this.f()}I.prototype.f=function(){var c=this.buffer,a,b=c.length,e=new (B?Uint8Array:Array)(b<<1);if(B)e.set(c);else for(a=0;a<b;++a)e[a]=c[a];return this.buffer=e};
 I.prototype.d=function(c,a,b){var e=this.buffer,f=this.index,d=this.n,g=e[f],h;b&&1<a&&(c=8<a?(K[c&255]<<24|K[c>>>8&255]<<16|K[c>>>16&255]<<8|K[c>>>24&255])>>32-a:K[c]>>8-a);if(8>a+d)g=g<<a|c,d+=a;else for(h=0;h<a;++h)g=g<<1|c>>a-h-1&1,8===++d&&(d=0,e[f++]=K[g],g=0,f===e.length&&(e=this.f()));e[f]=g;this.buffer=e;this.n=d;this.index=f};I.prototype.finish=function(){var c=this.buffer,a=this.index,b;0<this.n&&(c[a]<<=8-this.n,c[a]=K[c[a]],a++);B?b=c.subarray(0,a):(c.length=a,b=c);return b};
@@ -11058,7 +11060,7 @@ function Db(c){var a=new Buffer(c.length),b,e;b=0;for(e=c.length;b<e;++b)a[b]=c[
 var Ib=[0,0,0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,11,11,12,12,13,13];B&&new Uint8Array(Ib);var Jb=new (B?Uint8Array:Array)(288),$,Kb;$=0;for(Kb=Jb.length;$<Kb;++$)Jb[$]=143>=$?8:255>=$?9:279>=$?7:8;T(Jb);var Lb=new (B?Uint8Array:Array)(30),Mb,Nb;Mb=0;for(Nb=Lb.length;Mb<Nb;++Mb)Lb[Mb]=5;T(Lb);var Ga=8;}).call(this);
 
 })(require("__browserify_process"),require("__browserify_buffer").Buffer)
-},{"__browserify_process":14,"__browserify_buffer":19}],30:[function(require,module,exports){
+},{"__browserify_process":14,"__browserify_buffer":19}],27:[function(require,module,exports){
 (function(Buffer){// Copyright (c) 2012 Kuba Niegowski
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -11375,7 +11377,7 @@ var PaethPredictor = function(left, above, upLeft) {
 };
 
 })(require("__browserify_buffer").Buffer)
-},{"util":17,"zlib":26,"./chunkstream":27,"__browserify_buffer":19}],25:[function(require,module,exports){
+},{"util":16,"zlib":26,"./chunkstream":30,"__browserify_buffer":19}],25:[function(require,module,exports){
 "use strict"
 
 var uniq = require("uniq")
